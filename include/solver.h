@@ -6,6 +6,7 @@
 #define VRP_SOLVER_H
 
 #include <tuple>
+#include <chrono>
 
 #include "instance.h"
 #include "gurobi_c++.h"
@@ -16,5 +17,6 @@ public:
 
     explicit Solver(Instance ins): instance{std::move(ins)} {}
     tuple<int, int, double, bool, double> TwoIndexFlow(double tiLim);
+    tuple<int, int, double, bool, double> MulticommodityFlow(double tiLim);
 };
 #endif //VRP_SOLVER_H

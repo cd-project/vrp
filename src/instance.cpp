@@ -4,42 +4,40 @@
 
 #include "../include/instance.h"
 
-void GenerateSubsets(const std::vector<Node>& nodes, std::vector<Node>& current, int index, std::vector<std::vector<Node>>& subsets) {
-    if (current.size() >= 2) {  // Ensure at least two elements in the subset
-        subsets.push_back(current);
+void GenerateSubsets(vector<Node>& nodes, vector<vector<Node> >& res,
+                 vector<Node>& subset, int index) {
+    if (subset.size() >= 2) {
+        res.push_back(subset);
     }
+    // Loop to choose from different elements present
+    // after the current index 'index'
+    for (int i = index; i < nodes.size(); i++) {
 
-    if (index == nodes.size()) {
-        return;
-    }
+        // include the nodes[i] in subset.
+        subset.push_back(nodes[i]);
 
-    if (nodes[index].Demand > 0) {  // Exclude nodes with zero demand (depots)
-        GenerateSubsets(nodes, current, index + 1, subsets);
+        // move onto the next element.
+        GenerateSubsets(nodes, res, subset, i + 1);
 
-        bool alreadyInSubset = false;
-        for (const Node& node : current) {
-            if (node.Index == nodes[index].Index) {
-                alreadyInSubset = true;
-                break;
-            }
-        }
-        if (!alreadyInSubset) {
-            current.push_back(nodes[index]);
-            GenerateSubsets(nodes, current, index + 1, subsets);
-            current.pop_back();
-        }
-    } else {
-        GenerateSubsets(nodes, current, index + 1, subsets);
+        // exclude the nodes[i] from subset and triggers
+        // backtracking.
+        subset.pop_back();
     }
 }
 
-std::vector<std::vector<Node>> GetAllSubsets(const std::vector<Node>& nodes) {
-    std::vector<std::vector<Node>> subsets;
-    std::vector<Node> current;
-    GenerateSubsets(nodes, current, 1, subsets);  // Start from index 1 to exclude depots
-    return subsets;
-}
+// below function returns the subsets of vector A.
+vector<vector<Node> > GetAllSubsets(vector<Node>& A)
+{
+    vector<Node> subset;
+    vector<vector<Node> > res;
 
+    // keeps track of current element in vector A
+    // and the number of elements present in the array subset
+    int index = 0;
+    GenerateSubsets(A, res, subset, index);
+
+    return res;
+}
 vector<Node> GetComplementSet(vector<Node> originalSet, vector<Node> subset) {
     std::unordered_set<int> subsetIds;
 
@@ -340,21 +338,22 @@ Instance::Instance(string filePath) {
         }
     }
     auto allNS = GetAllSubsets(NodesWithoutDepots);
+
     for (int i = 0; i < allNS.size(); i++) {
         auto ns = allNS[i];
-        int q = 0;
-        int r;
-        // calculat
-        for (int nid = 0; nid < ns.size(); nid++) {
-            q += ns[nid].Demand;
+        if (ns.size() >= 2) {
+            int q = 0;
+            int r;
+            // calculate
+            for (int nid = 0; nid < ns.size(); nid++) {
+                q += ns[nid].Demand;
+            }
+            r = ceil(double(q) / double(Capacity));
+
+            auto cs = GetComplementSet(Nodes, ns);
+            auto nss = NodeSubset(ns, cs, q, r);
+            NodeSubsets.push_back(nss);
         }
-        r = ceil(q / Capacity);
-        if (r == 0) {
-            r = 1;
-        }
-        auto cs = GetComplementSet(Nodes, ns);
-        auto nss = NodeSubset(ns, cs, q, r);
-        NodeSubsets.push_back(nss);
     }
 
     // time to calculate actual data?
@@ -385,23 +384,26 @@ void Instance::PrintInstanceInfo() {
     if (!Comment.empty()) {
         cout << "Comment: " << Comment << endl;
     }
+    cout << "Number of vehicles: " << NumberOfVehicles << endl;
+    cout << "Number of nodes: " << Dimension << endl;
+    cout << "Number of non-depot nodes: " << NodesWithoutDepots.size() << endl;
 
-    cout << "Number of vertices: " << Dimension << endl;
-    // Nodes info
-    for (int i = 0; i < Dimension; i++) {
-        cout << "Node " << i << ", X = " << Nodes[i].X << ", Y = " << Nodes[i].Y << ", Demand = " << Nodes[i].Demand << endl;
-    }
-    for (int i = 0; i < NodeSubsets.size(); i++) {
-        cout << "This subset consists of " << NodeSubsets[i].Nodes.size() << " nodes" << endl;
-        cout << "Demand of this subset is: " << NodeSubsets[i].Q << endl;
-        cout << "Minimum number of vehicles needed for this subset is: " << NodeSubsets[i].R << endl;
-    }
-
-    for (int i = 0; i < Dimension; i++) {
-        for (int j = 0; j < Dimension; j++) {
-            cout << DistanceMatrix[i][j] <<  " ";
-        }
-        cout << endl;
-    }
+//    for (int i = 0; i < NodeSubsets.size(); i++) {
+//        cout << "This subset consists of " << NodeSubsets[i].Nodes.size() << " nodes and " << NodeSubsets[i].ComplementSet.size() << " complement nodes" << endl;
+//        cout << "The nodes are: ";
+//        for (int idx = 0; idx < NodeSubsets[i].Nodes.size(); idx++) {
+//            cout << NodeSubsets[i].Nodes[idx].Index << ", ";
+//        }
+//        cout << endl;
+//        cout << "Demand of this subset is: " << NodeSubsets[i].Q << endl;
+//        cout << "Minimum number of vehicles needed for this subset is: " << NodeSubsets[i].R << endl;
+//    }
+//
+//    for (int i = 0; i < Dimension; i++) {
+//        for (int j = 0; j < Dimension; j++) {
+//            cout << DistanceMatrix[i][j] <<  " ";
+//        }
+//        cout << endl;
+//    }
 }
 
