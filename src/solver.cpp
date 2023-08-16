@@ -2,6 +2,8 @@
 // Created by cuong on 12/08/2023.
 //
 
+#include <map>
+#include <unordered_map>
 #include "../include/solver.h"
 
 
@@ -16,56 +18,40 @@ tuple<int, int, double, bool, double> Solver::TwoIndexFlow(double tiLim) {
         auto M = instance.NumberOfVehicles; // number of vehicles.
         auto nss = instance.NodeSubsets; // subsets of nodes; contains at least 2 nodes; do not contain depots.
         auto nwd = instance.NodesWithoutDepots;
-
+        std::map<std::string, bool> stringToBoolMap;
         // Variable x (phi) and constraints 5 and 6.
         auto **x = new GRBVar *[n];
 //        for (int i = 0; i < n; i++) {
 //            x[i] = reinterpret_cast<GRBVar *>(new GRBVar *[n]);
 //            for (int j = 0; j < n; j++) {
-//                // i, j: node's index in array; not node's true index.
-//                if (nodes[i].Demand == 0 && nodes[j].Demand != 0) {
-//                    auto iIdx = nodes[i].Index;
-//                    auto jIdx = nodes[j].Index;
-//                    if (iIdx != jIdx) {
-//                        x[iIdx][jIdx] = model.addVar(0, 2, 0.0, GRB_INTEGER);
-//                        cout << "added " << "x_" + to_string(iIdx) + "_" + to_string(jIdx) << " as = (0, 1, 2)" << endl;
-//                    }
-//
-//                }
-//                if (nodes[i].Demand != 0 && nodes[j].Demand != 0) {
-//                    auto iIdx = nodes[i].Index;
-//                    auto jIdx = nodes[j].Index;
-//                    if (iIdx != jIdx) {
-//                        x[iIdx][jIdx] = model.addVar(0, 1, 0.0, GRB_INTEGER);
-//                        cout << "added " << "x_" + to_string(iIdx) + "_" + to_string(jIdx) << " as = (0, 1)"<< endl;
-//                    }
+//                if (i != j) {
+//                    x[i][j] = model.addVar(0,2, 0.0, GRB_INTEGER, "x_" + to_string(i) + "_" + to_string(j));
 //                }
 //            }
 //        }
-    for (int i = 0; i < n; i++) {
-        x[i] = reinterpret_cast<GRBVar *>(new GRBVar *[n]);
-        for (int j = 0; j < n; j++) {
-            if (i != j) {
-                x[i][j] = model.addVar(0,2, 0.0, GRB_INTEGER);
-            }
-        }
-    }
+
     for (int nodeIndex = 0; nodeIndex < nodes.size(); nodeIndex++) {
+        x[nodes[nodeIndex].Index] = reinterpret_cast<GRBVar *>(new GRBVar *[n]);
         for (int nwdIndex = 0; nwdIndex < nwd.size(); nwdIndex++) {
             auto i = nodes[nodeIndex].Index;
             auto j = nwd[nwdIndex].Index;
             if (i != j) {
                 if (nodes[nodeIndex].Demand == 0) {
-                    model.addConstr(0, GRB_LESS_EQUAL, x[i][j]);
-                    model.addConstr(2, GRB_GREATER_EQUAL, x[i][j]);
-
+                    x[i][j] = model.addVar(0, 2, 0.0, GRB_INTEGER, "x_" + to_string(i) + "_" + to_string(j));
+                    cout << "added " << "x_" + to_string(i) + "_" + to_string(j) << " as = (0, 1, 2)" << endl;
+                    stringToBoolMap["x_" + to_string(i) + "_" + to_string(j)] = true;
                 } else {
-                    model.addConstr(0, GRB_LESS_EQUAL, x[i][j]);
-                    model.addConstr(1, GRB_GREATER_EQUAL, x[i][j]);
+                    x[i][j] = model.addVar(0, 1, 0.0, GRB_INTEGER, "x_" + to_string(i) + "_" + to_string(j));
+                    stringToBoolMap["x_" + to_string(i) + "_" + to_string(j)] = true;
+                    cout << "added " << "x_" + to_string(i) + "_" + to_string(j) << " as = (0, 1)" << endl;
                 }
             }
 
         }
+    }
+
+    for (const auto& pair : stringToBoolMap) {
+        std::cout << "Key: " << pair.first << ", Value: " << pair.second << std::endl;
     }
 
     cout << "here222?" << endl;
@@ -138,28 +124,32 @@ tuple<int, int, double, bool, double> Solver::TwoIndexFlow(double tiLim) {
 
 //      Constraint 4
         GRBLinExpr constr4;
+        string cstr4 = "cstr4";
         for (int idx = 0; idx < nwd.size(); idx++) {
             constr4 += x[0][nwd[idx].Index];
+            cstr4 += " + x[0][" + to_string(nwd[idx].Index) + "]";
         }
         model.addConstr(constr4, GRB_EQUAL, 2 * M);
-        constr4 = 0;
 
+        constr4 = 0;
+        cout << cstr4 << endl;
         GRBLinExpr objective;
-        for (int i = 0; i < n; i++) {
-            for (int j = 0; j < n; j++) {
-                if (i > j) {
+        for (int nodeIndex = 0; nodeIndex < nodes.size(); nodeIndex++) {
+            auto i = nodes[nodeIndex].Index;
+            for (int nwdIndex = 0; nwdIndex < nwd.size(); nwdIndex++) {
+                auto j = nwd[nwdIndex].Index;
+                auto key = "x_" + to_string(i) + "_" + to_string(j);
+                if (stringToBoolMap.find(key) == stringToBoolMap.end()) {
+                    std::cout << key << "not exist in the map." << std::endl;
+                }
+                if (i != j) {
                     objective += c[i][j] * x[i][j];
-                    cout << "z += c" << "["  << i << "][" << j << "] * x[" << i << "][" << j << "]" << endl;
                 }
             }
         }
-
-        model.addConstr(objective, GRB_EQUAL, 0);
-        model.update();
-
-        model.setObjective(objective, GRB_MINIMIZE);
-        model.set(GRB_DoubleParam_TimeLimit, tiLim);
-        model.update();
+    model.setObjective(objective, GRB_MINIMIZE);
+    model.set(GRB_DoubleParam_TimeLimit, tiLim);
+    model.update();
         auto startTime = std::chrono::high_resolution_clock::now();
         model.optimize();
         auto endTime = std::chrono::high_resolution_clock::now();

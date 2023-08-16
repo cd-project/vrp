@@ -399,11 +399,11 @@ void Instance::PrintInstanceInfo() {
 //        cout << "Minimum number of vehicles needed for this subset is: " << NodeSubsets[i].R << endl;
 //    }
 //
-//    for (int i = 0; i < Dimension; i++) {
-//        for (int j = 0; j < Dimension; j++) {
-//            cout << DistanceMatrix[i][j] <<  " ";
-//        }
-//        cout << endl;
-//    }
+    for (int i = 0; i < Dimension; i++) {
+        for (int j = 0; j < Dimension; j++) {
+            cout << DistanceMatrix[i][j] <<  " ";
+        }
+        cout << endl;
+    }
 }
 
