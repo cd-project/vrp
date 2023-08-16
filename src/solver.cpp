@@ -28,7 +28,7 @@ tuple<int, int, double, bool, double> Solver::TwoIndexFlow(double tiLim) {
                 auto j = nwd[nwdIndex].Index;
                 if (i != j) {
                     if (nodes[nodeIndex].Demand == 0) {
-                        x[i][j] = model.addVar(0, 1, 0.0, GRB_INTEGER, "x_" + to_string(i) + "_" + to_string(j));
+                        x[i][j] = model.addVar(0, 2, 0.0, GRB_INTEGER, "x_" + to_string(i) + "_" + to_string(j));
                         cout << "added " << "x_" + to_string(i) + "_" + to_string(j) << " as = (0, 1, 2)" << endl;
                         stringToBoolMap["x_" + to_string(i) + "_" + to_string(j)] = true;
                     } else {
@@ -75,14 +75,14 @@ tuple<int, int, double, bool, double> Solver::TwoIndexFlow(double tiLim) {
                 if (stringToBoolMap.find(key) == stringToBoolMap.end()) {
                     std::cout << key << "not exist in the map." << std::endl;
                 }
-                if (i != j) {
+                if (i < j) {
                     objective += c[i][j] * x[i][j];
                 }
             }
         }
-    model.setObjective(objective, GRB_MINIMIZE);
-    model.set(GRB_DoubleParam_TimeLimit, tiLim);
-    model.update();
+        model.setObjective(objective, GRB_MINIMIZE);
+        model.set(GRB_DoubleParam_TimeLimit, tiLim);
+        model.update();
         auto startTime = std::chrono::high_resolution_clock::now();
         model.optimize();
         auto endTime = std::chrono::high_resolution_clock::now();
@@ -91,13 +91,15 @@ tuple<int, int, double, bool, double> Solver::TwoIndexFlow(double tiLim) {
         if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL) {
             optimal = true;
         }
-
         result = make_tuple(model.get(GRB_DoubleAttr_ObjBound), model.get(GRB_DoubleAttr_ObjVal), duration.count(),
-                            optimal, model.get(GRB_DoubleAttr_MIPGap));
+                             optimal, model.get(GRB_DoubleAttr_MIPGap));
+
+
     } catch (GRBException e) {
         std::cout << "Error code: " << e.getErrorCode() << std::endl;
         std::cout << e.getMessage() << std::endl;
     }
+
 
     return result;
 
@@ -124,14 +126,15 @@ tuple<int, int, double, bool, double> Solver::MulticommodityFlow(double tiLim) {
 
     auto*** y = new GRBVar ** [n];
     for (int i = 0; i < n; i++) {
-        y[i] = reinterpret_cast<GRBVar **>(new GRBVar ** [nwd.size()]);
+        y[i] = reinterpret_cast<GRBVar **>(new GRBVar ** [n]);
         for (int j = 0; j < nwd.size(); j++) {
             y[i][j] = reinterpret_cast<GRBVar *>(new GRBVar * [nwd.size()]);
             for (int l = 0; l < nwd.size(); l++) {
-
+                y[i][j][l] = model.addVar(0, GRB_INFINITY, 0.0, GRB_CONTINUOUS);
             }
         }
     }
+
     // Constraint 9
     for (int jIdx = 0; jIdx < nwd.size(); jIdx++) {
         GRBLinExpr expr;
