@@ -55,7 +55,7 @@ vector<Node> GetComplementSet(vector<Node> originalSet, vector<Node> subset) {
 
     return complementSet;
 }
-vector<string> SplitStringWithDelimiter(string s, string delimiter) {
+vector<string> Instance::SplitStringWithDelimiter(string s, string delimiter) {
     vector<string> returnValue;
     string::size_type start = 0;
     string::size_type end = s.find(delimiter);
@@ -132,6 +132,7 @@ Instance::Instance(string filePath) {
             if (line.find("EDGE_WEIGHT_TYPE") != string::npos) {
                 auto lc = SplitStringWithDelimiter(line, ":");
                 EdgeWeightType = TrimSpace(lc[1]);
+                cout << "EWT IS: " << EdgeWeightType << endl;
                 continue;
             }
             if (line.find("EDGE_WEIGHT_FORMAT") != string::npos) {
@@ -208,6 +209,74 @@ Instance::Instance(string filePath) {
                 startReadCoordDist = false;
                 startReadDemand = true;
                 cout << "Done reading nodes" << endl;
+            } else if (EdgeWeightType == "EXPLICIT") {
+                if (EdgeWeightFormat == "LOWER_COL") {
+                    istringstream iss(line);
+                    vector<int> nums;
+                    int number;
+                    while(iss >> number) {
+                        nums.push_back(number);
+                    }
+                    auto ns = nums.size();
+                    for (int i = 1; i <= Dimension*(Dimension+1)/2-Dimension-ns; i++) {
+                        data >> number;
+                        nums.push_back(number);
+                    }
+                    int dem = 0;
+                    vector<vector<int>> dist(Dimension, vector<int>(Dimension));
+                    for (int i = 0; i < Dimension; i++) {
+                        for (int j = 0; j <= i; j++) {
+                            if (i == j) {
+                                dist[i][j] = 0;
+                            } else {
+                                    dist[i][j] = dist[j][i] = nums[dem];
+                                    dem++;
+                                }
+                            }
+                        }
+                    DistanceMatrix = dist;
+                    for (int i = 0; i < Dimension; i++) {
+                        auto node = Node(i, 0, 0);
+                        nodes.push_back(node);
+                    }
+                    startReadCoordDist = false;
+                    startReadDemand = true;
+
+                    cout << "Done reading nodes" << endl;
+                } else if (EdgeWeightFormat == "LOWER_ROW") {
+                    istringstream iss(line);
+                    vector<int> nums;
+                    int number;
+                    while(iss >> number) {
+                        nums.push_back(number);
+                    }
+                    auto ns = nums.size();
+                    for (int i = 1; i <= Dimension*(Dimension+1)/2-Dimension-ns; i++) {
+                        data >> number;
+                        nums.push_back(number);
+                    }
+                    int dem = 0;
+                    vector<vector<int>> dist(Dimension, vector<int>(Dimension));
+                    for (int i = 0; i < Dimension; i++) {
+                        for (int j = 0; j <= i; j++) {
+                            if (i == j) {
+                                dist[i][j] = 0;
+                            } else {
+                                dist[i][j] = dist[j][i] = nums[dem];
+                                dem++;
+                            }
+                        }
+                    }
+                    DistanceMatrix = dist;
+                    for (int i = 0; i < Dimension; i++) {
+                        auto node = Node(i, 0, 0);
+                        nodes.push_back(node);
+                    }
+                    startReadCoordDist = false;
+                    startReadDemand = true;
+
+                    cout << "Done reading nodes" << endl;
+                }
             }
 //            else if (EdgeWeightType == "GEO") {
 //                vector<double> xVec(Dimension);
@@ -312,18 +381,41 @@ Instance::Instance(string filePath) {
 //                }
 //            }
         }
+        // for (int i = 0; i < Dimension; i++) {
+        //     for (int j = 0; j < Dimension; j++) {
+        //         cout << DistanceMatrix[i][j] << " ";
+        //     }
+        //     cout << endl;
+        // }
         if (startReadDemand && !startReadCoordDist) {
             // "data" stream was not read?
-            string str_dm_st;
-            data >> str_dm_st;
-            for (int i = 0; i < Dimension; i++) {
-                int idx, dm;
-                data >> idx >> dm;
-                nodes[idx - 1].Demand = dm;
+            if (EdgeWeightType == "EUC_2D" || EdgeWeightType == "ATT") {
+                string str_dm_st;
+                data >> str_dm_st;
+                for (int i = 0; i < Dimension; i++) {
+                    int idx, dm;
+                    data >> idx >> dm;
+                    nodes[idx - 1].Demand = dm;
 
+                }
+                startReadDemand = false;
+                cout << "Done read demand" << endl;
+            } else if (EdgeWeightType == "EXPLICIT") {
+                string l;
+                while(l != "DEMAND_SECTION") {
+                    data >> l;
+                }
+
+                for (int i = 0; i < Dimension; i++) {
+                    int idx, dm;
+                    data >> idx >> dm;
+                    nodes[idx - 1].Demand = dm;
+
+                }
+                startReadDemand = false;
+                cout << "Done read demand" << endl;
             }
-            startReadDemand = false;
-            cout << "Done read demand" << endl;
+
         }
 
 
@@ -337,24 +429,24 @@ Instance::Instance(string filePath) {
             NodesWithoutDepots.push_back(Nodes[i]);
         }
     }
-    auto allNS = GetAllSubsets(NodesWithoutDepots);
-
-    for (int i = 0; i < allNS.size(); i++) {
-        auto ns = allNS[i];
-        if (ns.size() >= 2) {
-            int q = 0;
-            int r;
-            // calculate
-            for (int nid = 0; nid < ns.size(); nid++) {
-                q += ns[nid].Demand;
-            }
-            r = ceil(double(q) / double(Capacity));
-
-            auto cs = GetComplementSet(Nodes, ns);
-            auto nss = NodeSubset(ns, cs, q, r);
-            NodeSubsets.push_back(nss);
-        }
-    }
+//    auto allNS = GetAllSubsets(NodesWithoutDepots);
+//
+//    for (int i = 0; i < allNS.size(); i++) {
+//        auto ns = allNS[i];
+//        if (ns.size() >= 2) {
+//            int q = 0;
+//            int r;
+//            // calculate
+//            for (int nid = 0; nid < ns.size(); nid++) {
+//                q += ns[nid].Demand;
+//            }
+//            r = ceil(double(q) / double(Capacity));
+//
+//            auto cs = GetComplementSet(Nodes, ns);
+//            auto nss = NodeSubset(ns, cs, q, r);
+//            NodeSubsets.push_back(nss);
+//        }
+//    }
 
     // time to calculate actual data?
     // if EUC_2D || ATT => cal.
@@ -366,9 +458,9 @@ Instance::Instance(string filePath) {
                 if (i == j) {
                     dist[i][j] = 0;
                 } else {
-                    auto xDif = Nodes[i].X - Nodes[j].X;
-                    auto yDif = Nodes[i].Y - Nodes[j].Y;
-                    dist[i][j] = ceil((sqrt(xDif * xDif + yDif * yDif)));
+                    auto dx = Nodes[i].X - Nodes[j].X;
+                    auto dy = Nodes[i].Y - Nodes[j].Y;
+                    dist[i][j] = int((sqrt(dx * dx + dy * dy) + 0.5));
                 }
             }
         }
@@ -399,11 +491,8 @@ void Instance::PrintInstanceInfo() {
 //        cout << "Minimum number of vehicles needed for this subset is: " << NodeSubsets[i].R << endl;
 //    }
 //
-    for (int i = 0; i < Dimension; i++) {
-        for (int j = 0; j < Dimension; j++) {
-            cout << DistanceMatrix[i][j] <<  " ";
-        }
-        cout << endl;
-    }
+
 }
+
+Instance::Instance() = default;
 

@@ -50,8 +50,10 @@ public:
     string DisplayDataType;
     string EdgeDataFormat;
     string NodeCoordType;
-
+    Instance();
     explicit Instance(string filePath);
     void PrintInstanceInfo();
+
+    vector<string> SplitStringWithDelimiter(string s, string delimiter);
 };
 #endif //VRP_INSTANCE_H

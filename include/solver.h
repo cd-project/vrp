@@ -18,5 +18,8 @@ public:
     explicit Solver(Instance ins): instance{std::move(ins)} {}
     tuple<int, int, double, bool, double> TwoIndexFlow(double tiLim);
     tuple<int, int, double, bool, double> MulticommodityFlow(double tiLim);
+    tuple<int, int, double, bool, double> MulticommodityFlowSingleDepotAtO(double tiLim);
+    tuple<int, int, double, bool, double> TwoCommodityFlow(double tiLim);
+
 };
 #endif //VRP_SOLVER_H
