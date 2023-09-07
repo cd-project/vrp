@@ -12,7 +12,7 @@ int main() {
     string folderPath = "/home/cuong/CLionProjects/VRP/test_data";
     auto fPSplit = instance.SplitStringWithDelimiter(folderPath, "/");
     string outputPath = fPSplit[fPSplit.size()-1] + ".csv";
-    int formula = 3;
+    int formula = 1;
     double timeLimit = 3600.0;
     batchSolver.GurobiBatch(folderPath, outputPath, formula, 1000, timeLimit);
 //    auto solver = Solver(instance);

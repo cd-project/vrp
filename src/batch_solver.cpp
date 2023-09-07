@@ -19,7 +19,7 @@ void BatchSolver::GurobiBatch(string folderPath, string outputPath, int formula,
     string opF;
     switch (formula) {
         case 1:
-            opF = "grb_single_cmm_" + outputPath;
+            opF = "grb_mtz_" + outputPath;
             break;
         case 2:
             opF = "grb_two_cmm_" + outputPath;
@@ -27,14 +27,13 @@ void BatchSolver::GurobiBatch(string folderPath, string outputPath, int formula,
         case 3:
             opF = "grb_multi_cmm_" + outputPath;
             break;
-        default:
-            return;
+        case 4:
+            opF = "grb_single_cmm_" + outputPath;
     }
-    ofstream file(opF);
+    ofstream file(opF, ios::out | ios::app);
 
     vector<InstanceResult> data;
     if (file.is_open()) {
-        file << "Instance name,Lower bound,Upper bound,Time,Optimal,Gap\n";
         for (int i = 0; i < fileList.size(); i++) {
             auto fName = folderPath + "/" + fileList[i];
             cout << "Current instance name: " << fName << endl;
@@ -47,10 +46,11 @@ void BatchSolver::GurobiBatch(string folderPath, string outputPath, int formula,
             tuple<int, int, double, bool, double> res;
             InstanceResult iR;
             switch (formula) {
-                case 1: //
-//                    res = solver.GurobiMTZSolver(tiLim);
-//                    iR = (InstanceResult{fileList[i], get<0>(res), get<1>(res), get<2>(res), get<3>(res), get<4>(res)});
-//                    break;
+                case 1:
+                    cout << "Using MTZ--------------------------------------------" << endl;
+                   res = solver.MTZ(tiLim);
+                   iR = (InstanceResult{fileList[i], get<0>(res), get<1>(res), get<2>(res), get<3>(res), get<4>(res)});
+                   break;
                 case 2:
                     cout << "Using 2-comm flow-----------------------------------------------" << endl;
                     res = solver.TwoCommodityFlow(tiLim);
@@ -61,7 +61,11 @@ void BatchSolver::GurobiBatch(string folderPath, string outputPath, int formula,
                     res = solver.MulticommodityFlowSingleDepotAtO(tiLim);
                     iR = (InstanceResult{fileList[i], get<0>(res), get<1>(res), get<2>(res), get<3>(res), get<4>(res)});
                     break;
-
+                case 4:
+                    cout << "Using Single-comm flow--------------------------------------------" << endl;
+                    res = solver.SingleCommodity(tiLim);
+                    iR = (InstanceResult{fileList[i], get<0>(res), get<1>(res), get<2>(res), get<3>(res), get<4>(res)});
+                    break;
             }
             file << iR.InstanceName << ","
                  << iR.LB << ","

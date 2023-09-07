@@ -20,6 +20,7 @@ public:
     tuple<int, int, double, bool, double> MulticommodityFlow(double tiLim);
     tuple<int, int, double, bool, double> MulticommodityFlowSingleDepotAtO(double tiLim);
     tuple<int, int, double, bool, double> TwoCommodityFlow(double tiLim);
-
+    tuple<int, int, double, bool, double> MTZ(double tiLim);
+    tuple<int, int, double, bool, double> SingleCommodity(double tiLim);
 };
 #endif //VRP_SOLVER_H

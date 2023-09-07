@@ -844,3 +844,261 @@ tuple<int, int, double, bool, double> Solver::TwoCommodityFlow(double tiLim) {
 //    }
     return result;
 }
+
+tuple<int, int, double, bool, double> Solver::MTZ(double tiLim) {
+    tuple<int, int, double, bool, double> result;
+//    try {
+    GRBEnv env;
+    GRBModel model(env);
+
+    auto nodes = instance.Nodes;
+    auto Q = instance.Capacity;
+    auto c = instance.DistanceMatrix;
+    // add to nodes: node n+1
+
+    auto n = nodes.size();
+
+    map<string, bool> mapX;
+
+
+    auto** x = new GRBVar *[n];
+    for (int i = 0; i < n; i++) {
+        x[i] = reinterpret_cast<GRBVar *>(new GRBVar * [n]);
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                x[i][j] = model.addVar(0, 1, 0.0, GRB_BINARY, "x_" + to_string(i) + "_" + to_string(j));
+                mapX["x_" + to_string(i) + "_" + to_string(j)] = true;
+            }
+
+        }
+    }
+
+    // Constraint 2
+    GRBLinExpr expr2;
+    for (int i = 1; i < n; i++) {
+        expr2 += x[0][i];
+    }
+    model.addConstr(expr2, GRB_LESS_EQUAL, n);
+
+    // Constraint 3
+    GRBLinExpr expr3;
+    for (int i = 1; i < n; i++) {
+        expr3 += x[i][0];
+    }
+    model.addConstr(expr2, GRB_LESS_EQUAL, n);
+
+    // Constraint 4
+    for (int j = 1; j < n; j++) {
+        GRBLinExpr expr4;
+        for (int i = 0; i < n; i++) {
+            if (i!=j) {
+                expr4 += x[i][j];
+            }
+        }
+        model.addConstr(expr4, GRB_EQUAL, 1);
+    }
+
+    // Constraint 5
+    for (int i = 1; i < n; i++) {
+        GRBLinExpr expr5;
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                expr5 += x[i][j];
+            }
+        }
+        model.addConstr(expr5, GRB_EQUAL, 1);
+    }
+
+    // Constraint 6
+    auto* u = new GRBVar [n];
+    for (int i = 1; i < n; i++) {
+        u[i]= model.addVar(nodes[i].Demand, Q, 0.0, GRB_INTEGER);
+    }
+    for (int i = 1; i < n; i++) {
+        GRBLinExpr expr6;
+        for (int j = 1; j < n; j++) {
+            if (i != j) {
+                expr6 += nodes[j].Demand * x[j][i];
+            }
+        }
+        model.addConstr(u[i] - expr6, GRB_GREATER_EQUAL, nodes[i].Demand);
+    }
+
+    // Constraint 7
+    for (int i = 1; i < n; i++) {
+        GRBLinExpr expr7;
+        int maxQj = 0;
+        for (int j = 1; j < n; j++) {
+            if (j != i) {
+                if (nodes[j].Demand >= maxQj) {
+                    maxQj = nodes[j].Demand;
+                }
+                expr7 += nodes[j].Demand * x[i][j];
+            }
+        }
+
+        model.addConstr((Q - maxQj - nodes[i].Demand) * x[0][i] + expr7, GRB_LESS_EQUAL, Q - u[i]);
+    }
+
+    // Constraint 8
+    for (int i = 1; i < n; i++) {
+        for (int j = 1; j < n; j++) {
+            if (i != j) {
+                model.addConstr(u[i]- u[j] + Q * x[i][j] + (Q - nodes[i].Demand - nodes[j].Demand) * x[j][i], GRB_LESS_EQUAL, Q - nodes[j].Demand);
+            }
+        }
+    }
+    GRBLinExpr objective;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i != j)  {
+                objective += c[i][j] * x[i][j];
+            }
+        }
+    }
+    model.setObjective(objective, GRB_MINIMIZE);
+    model.set(GRB_DoubleParam_TimeLimit, tiLim);
+    model.update();
+    model.write("model_mtz.lp");
+    auto startTime = std::chrono::high_resolution_clock::now();
+    model.optimize();
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    bool optimal = false;
+    if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL) {
+        optimal = true;
+    }
+    result = make_tuple(model.get(GRB_DoubleAttr_ObjBound), model.get(GRB_DoubleAttr_ObjVal), duration.count(),
+                        optimal, model.get(GRB_DoubleAttr_MIPGap));
+
+
+//    } catch (GRBException e) {
+//        std::cout << "Error code: " << e.getErrorCode() << std::endl;
+//        std::cout << e.getMessage() << std::endl;
+//    }
+    return result;
+}
+
+tuple<int, int, double, bool, double> Solver::SingleCommodity(double tiLim) {
+    tuple<int, int, double, bool, double> result;
+//    try {
+    GRBEnv env;
+    GRBModel model(env);
+
+    auto nodes = instance.Nodes;
+    auto Q = instance.Capacity;
+    auto c = instance.DistanceMatrix;
+    // add to nodes: node n+1
+
+    auto n = nodes.size();
+
+    map<string, bool> mapX, mapF;
+
+
+    auto** x = new GRBVar *[n];
+    for (int i = 0; i < n; i++) {
+        x[i] = reinterpret_cast<GRBVar *>(new GRBVar * [n]);
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                x[i][j] = model.addVar(0, 1, 0.0, GRB_BINARY, "x_" + to_string(i) + "_" + to_string(j));
+                mapX["x_" + to_string(i) + "_" + to_string(j)] = true;
+            }
+
+        }
+    }
+
+    auto** f = new GRBVar *[n];
+    for (int i = 0; i < n; i++) {
+        f[i] = reinterpret_cast<GRBVar *>(new GRBVar * [n]);
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                f[i][j] = model.addVar(0, GRB_INFINITY, 0.0, GRB_CONTINUOUS, "x_" + to_string(i) + "_" + to_string(j));
+                mapF["x_" + to_string(i) + "_" + to_string(j)] = true;
+            }
+
+        }
+    }
+
+    // Constraint 2
+    for (int i = 1; i < n; i++) {
+        GRBLinExpr expr2;
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                expr2 += x[i][j];
+            }
+        }
+        model.addConstr(expr2, GRB_EQUAL, 1);
+    }
+
+    // Constraint 3
+    for (int j = 1; j < n; j++) {
+        GRBLinExpr expr3;
+        for (int i= 0; i < n; i++) {
+            if (i != j) {
+                expr3 += x[i][j];
+            }
+        }
+        model.addConstr(expr3, GRB_EQUAL, 1);
+    }
+
+    // Constraint 4
+    for (int i = 1; i < n; i++) {
+        GRBLinExpr expr41;
+        GRBLinExpr expr42;
+
+        // 4.1
+        auto j41 = i;
+        for (int i41 = 0; i41 < n; i41++) {
+            if (i41 != j41) {
+                expr41 += f[i41][j41];
+            }
+        }
+
+        // 4.2
+        for (int j = 0; j < n; j++) {
+            if (j != i) {
+                expr42 += f[i][j];
+            }
+        }
+        model.addConstr(expr41 - expr42, GRB_EQUAL, nodes[i].Demand);
+    }
+
+
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i != j) {
+                model.addConstr(0, GRB_LESS_EQUAL, f[i][j]);
+                model.addConstr(f[i][j], GRB_LESS_EQUAL, Q * x[i][j]);
+            }
+        }
+    }
+    GRBLinExpr objective;
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i != j)  {
+                objective += c[i][j] * x[i][j];
+            }
+        }
+    }
+    model.setObjective(objective, GRB_MINIMIZE);
+    model.set(GRB_DoubleParam_TimeLimit, tiLim);
+    model.update();
+    model.write("model_mtz.lp");
+    auto startTime = std::chrono::high_resolution_clock::now();
+    model.optimize();
+    auto endTime = std::chrono::high_resolution_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
+    bool optimal = false;
+    if (model.get(GRB_IntAttr_Status) == GRB_OPTIMAL) {
+        optimal = true;
+    }
+    result = make_tuple(model.get(GRB_DoubleAttr_ObjBound), model.get(GRB_DoubleAttr_ObjVal), duration.count(),
+                        optimal, model.get(GRB_DoubleAttr_MIPGap));
+
+
+//    } catch (GRBException e) {
+//        std::cout << "Error code: " << e.getErrorCode() << std::endl;
+//        std::cout << e.getMessage() << std::endl;
+//    }
+    return result;
+}
