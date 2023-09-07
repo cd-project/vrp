@@ -1,0 +1,2 @@
+Instance name,Lower bound,Upper bound,Time,Optimal,Gap
+P-n60-k10.vrp,733,744,3600.01,0,0.0147849
