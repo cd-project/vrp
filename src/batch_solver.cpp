@@ -30,11 +30,12 @@ void BatchSolver::GurobiBatch(string folderPath, string outputPath, int formula,
         case 4:
             opF = "grb_single_cmm_" + outputPath;
     }
-    ofstream file(opF, ios::out | ios::app);
+
 
     vector<InstanceResult> data;
-    if (file.is_open()) {
+
         for (int i = 0; i < fileList.size(); i++) {
+            ofstream file(opF, ios::out | ios::app);
             auto fName = folderPath + "/" + fileList[i];
             cout << "Current instance name: " << fName << endl;
             auto inst = Instance(fName);
@@ -73,10 +74,9 @@ void BatchSolver::GurobiBatch(string folderPath, string outputPath, int formula,
                  << iR.RunningTime/1000 << ","
                  << iR.IsOptimal << ","
                  << iR.Gap << "\n";
+            file.close();
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
-        file.close();
+
         std::cout << "CSV file created successfully." << std::endl;
-    } else {
-        std::cerr << "Error creating CSV file." << std::endl;
-    }
 }

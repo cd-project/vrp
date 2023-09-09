@@ -9,10 +9,10 @@
 int main() {
     auto instance = Instance();
     auto batchSolver = BatchSolver();
-    string folderPath = "/home/cuong/CLionProjects/VRP/test_data";
+    string folderPath = "/home/cuong/CLionProjects/VRP/test_1_only";
     auto fPSplit = instance.SplitStringWithDelimiter(folderPath, "/");
     string outputPath = fPSplit[fPSplit.size()-1] + ".csv";
-    int formula = 1;
+    int formula = 2;
     double timeLimit = 3600.0;
     batchSolver.GurobiBatch(folderPath, outputPath, formula, 1000, timeLimit);
 //    auto solver = Solver(instance);
